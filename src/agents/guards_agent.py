@@ -24,6 +24,7 @@ from agents.security_boundary import (
     assess_external_content,
     authorize_action,
     contains_instruction_override,
+    contains_sensitive_data,
     contains_secret,
     normalize_for_security,
 )
@@ -85,6 +86,7 @@ _INJECTION_PATTERNS = [
     r"hypotheticall?y.*(password|api\s*key|secret|credentials)",
     r"write\s+a\s+story.*(password|credentials|api\s*key|same\s+secrets)",
     r"confirm\s+(that\s+)?(the\s+)?(admin\s+)?password",
+    r"(?:print|list|give|send|extract)\b.{0,100}(?:admin\s+password|api\s*key|db\s+host|internal\s+secret)",
 ]
 
 _OUTPUT_SECRET_PATTERNS = {
@@ -124,6 +126,8 @@ def topic_filter_strong(text: str) -> bool:
 def content_filter_strong(response: str) -> dict:
     issues = []
     redacted = response
+    if contains_sensitive_data(response):
+        issues.append("sensitive_data")
     for name, pattern in _OUTPUT_SECRET_PATTERNS.items():
         if re.search(pattern, response, re.IGNORECASE):
             issues.append(name)

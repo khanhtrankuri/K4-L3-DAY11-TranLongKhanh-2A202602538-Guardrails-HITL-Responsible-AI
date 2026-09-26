@@ -14,6 +14,7 @@ from google.adk.plugins import base_plugin
 
 from core.utils import chat_with_agent
 from core.config import load_protected_payload
+from agents.security_boundary import contains_sensitive_data
 
 
 # ============================================================
@@ -61,6 +62,10 @@ def content_filter(response: str) -> dict:
         if matches:
             issues.append(f"{name}: {len(matches)} found")
             redacted = re.sub(pattern, "[REDACTED]", redacted, flags=re.IGNORECASE)
+
+    if contains_sensitive_data(redacted):
+        issues.append("encoded_or_obfuscated_sensitive_data")
+        redacted = "I cannot share internal system details."
 
     return {
         "safe": len(issues) == 0,

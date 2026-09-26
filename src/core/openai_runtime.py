@@ -99,8 +99,8 @@ class OpenAIRunner:
             return None
         try:
             from google.genai import types
-        except ImportError:
-            return None
+        except ImportError as exc:
+            raise RuntimeError("Input guardrail dependency is unavailable") from exc
 
         user_content = types.Content(
             role="user",
@@ -127,8 +127,8 @@ class OpenAIRunner:
             return text
         try:
             from google.genai import types
-        except ImportError:
-            return text
+        except ImportError as exc:
+            raise RuntimeError("Output guardrail dependency is unavailable") from exc
 
         content = types.Content(
             role="model", parts=[types.Part.from_text(text=text)]
@@ -153,7 +153,7 @@ class OpenAIRunner:
                 out = cb(callback_context=_Ctx(), llm_response=llm_response)
             if out is not None and getattr(out, "content", None) is not None:
                 llm_response = out
-        return _content_to_text(llm_response.content) or text
+        return _content_to_text(llm_response.content)
 
 
 def _content_to_text(content: Any) -> str:

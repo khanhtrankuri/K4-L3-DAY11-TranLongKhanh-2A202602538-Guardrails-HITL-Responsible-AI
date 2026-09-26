@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -11,7 +10,7 @@ from google.genai import types
 from assignment.rate_limiter import RateLimitPlugin
 from assignment.audit_log import AuditLogPlugin
 from assignment.monitoring import MonitoringAlert
-from agents.security_boundary import contains_secret
+from agents.security_boundary import contains_sensitive_data
 from guardrails.input_guardrails import InputGuardrailPlugin
 from guardrails.output_guardrails import OutputGuardrailPlugin
 
@@ -21,6 +20,8 @@ ALLOWED_EGRESS_HOSTS = frozenset({"api.vinbank.example", "cases.vinbank.example"
 
 def is_egress_allowed(destination: str, payload: str) -> bool:
     """Permit only known HTTPS hosts and non-sensitive payloads."""
+    if not isinstance(destination, str) or not isinstance(payload, str):
+        return False
     try:
         url = urlsplit(destination)
         if url.scheme != "https" or url.hostname not in ALLOWED_EGRESS_HOSTS:
@@ -29,17 +30,8 @@ def is_egress_allowed(destination: str, payload: str) -> bool:
             return False
     except ValueError:
         return False
-    sensitive = (
-        r"\b(?:password|mật\s*khẩu|api[_ -]?key)\b",
-        r"\bsk-[a-z0-9-]{6,}\b",
-        r"\bdb\.[a-z0-9.-]+\.internal(?::\d+)?\b",
-        r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b",
-        r"(?<!\d)(?:\+84|0)\d{9,10}(?!\d)",
-        r"(?<!\d)\d{12}(?!\d)",
-    )
-    return not contains_secret(payload or "") and not any(
-        re.search(pattern, payload or "", re.IGNORECASE) for pattern in sensitive
-    )
+    outbound_text = f"{destination}\n{payload or ''}"
+    return not contains_sensitive_data(outbound_text)
 
 
 def build_production_plugins(*, max_requests: int = 10, window_seconds: int = 60,

@@ -11,6 +11,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from guardrails.output_guardrails import content_filter
+
 
 def default_audit_log_path() -> str:
     """Always resolve to <repo>/outputs/… (safe when cwd is src/)."""
@@ -24,7 +26,7 @@ class AuditLogPlugin:
     def __init__(self):
         self.name = "audit_log"
         self.logs: list[dict] = []
-        self._open: dict[str, float] = {}
+        self._open: dict[str, tuple[float, str, str]] = {}
 
     def record_input(self, *, user_id: str, text: str, request_id: str | None = None):
         """Store input and its start time for a later output record."""
@@ -47,8 +49,8 @@ class AuditLogPlugin:
             "request_id": request_id,
             "user_id": user_id,
             "timestamp": timestamp,
-            "input": input_text,
-            "output": text,
+            "input": content_filter(input_text)["redacted"],
+            "output": content_filter(text)["redacted"],
             "blocked": blocked,
             "layer": layer,
             "latency_ms": round((time.monotonic() - start) * 1000, 3),

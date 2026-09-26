@@ -19,6 +19,7 @@ from google.adk.plugins import base_plugin
 from google.adk.agents.invocation_context import InvocationContext
 
 from core.config import ALLOWED_TOPICS, BLOCKED_TOPICS
+from agents.security_boundary import contains_protected_secret, security_views
 
 # Quyết định rõ ràng — tránh đảo nghĩa True/False
 InputStatus = Literal["ALLOW", "BLOCK"]
@@ -52,8 +53,6 @@ def detect_injection(user_input: str) -> InputStatus:
     Returns:
         ``"BLOCK"`` if injection detected (chặn), ``"ALLOW"`` otherwise (cho qua).
     """
-    normalized = unicodedata.normalize("NFKC", user_input or "")
-    normalized = re.sub(r"[\u200b-\u200f\u2060\ufeff]", "", normalized)
     INJECTION_PATTERNS = [
         r"ignore\s+(?:all\s+)?(?:previous|above|prior)\s+instructions?",
         r"you\s+are\s+now\b",
@@ -63,10 +62,24 @@ def detect_injection(user_input: str) -> InputStatus:
         r"act\s+as\s+(?:an?\s+)?unrestricted",
         r"(?:bỏ\s+qua|bo\s+qua)\s+(?:mọi\s+)?(?:hướng\s+dẫn|huong\s+dan)",
         r"(?:tiết\s+lộ|tiet\s+lo)\s+(?:mật\s+khẩu|mat\s+khau|api)",
+        r"\b(?:disregard|forget|override)\s+(?:(?:all|previous|your|system)\s+){0,3}(?:instructions?|rules?|prompt)\b",
+        r"\b(?:show|print|list|give|send|confirm|disclose|leak|extract|reveal)\b.{0,100}\b(?:admin\s+password|api\s*key|db\s+host|database\s+host|internal\s+(?:note|credential|secret))\b",
+        r"\b(?:admin\s+password|api\s*key|db\s+host)\b.{0,60}\b(?:exact|current|value|verbatim)\b",
     ]
 
-    for pattern in INJECTION_PATTERNS:
-        if re.search(pattern, normalized, re.IGNORECASE):
+    if contains_protected_secret(user_input):
+        return "BLOCK"
+    for view in security_views(user_input):
+        normalized = re.sub(r"[-_/–—]+", " ", view)
+        skeleton = re.sub(r"[^a-z0-9]", "", normalized.casefold())
+        if any(signal in skeleton for signal in (
+            "ignoreallpreviousinstructions",
+            "ignorepreviousinstructions",
+            "youarenowunrestricted",
+            "revealyoursystemprompt",
+        )):
+            return "BLOCK"
+        if any(re.search(pattern, normalized, re.IGNORECASE) for pattern in INJECTION_PATTERNS):
             return "BLOCK"
     return "ALLOW"
 
@@ -96,6 +109,13 @@ def topic_filter(user_input: str) -> InputStatus:
     def has_topic(topic: str) -> bool:
         return re.search(r"(?<!\w)" + re.escape(topic.casefold()) + r"(?!\w)", input_lower) is not None
     if any(has_topic(topic) for topic in BLOCKED_TOPICS):
+        return "BLOCK"
+    # A banking keyword cannot launder an unrelated request into scope.
+    if re.search(
+        r"\b(?:how\s+to\s+cook|recipe\s+for|write\s+(?:a\s+)?(?:poem|story)|"
+        r"weather\s+(?:today|forecast)|sports?\s+scores?)\b",
+        input_lower,
+    ):
         return "BLOCK"
     return "ALLOW" if any(has_topic(topic) for topic in ALLOWED_TOPICS) else "BLOCK"
 

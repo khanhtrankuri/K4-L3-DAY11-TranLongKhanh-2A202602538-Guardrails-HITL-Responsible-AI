@@ -6,6 +6,9 @@ Lab 11 — Optional enrichment: Human-in-the-Loop Design
   - 3 HITL decision points
 """
 from dataclasses import dataclass
+import math
+
+from agents.security_boundary import contains_sensitive_data
 
 
 # ============================================================
@@ -29,6 +32,7 @@ HIGH_RISK_ACTIONS = [
     "delete_data",
     "update_personal_info",
 ]
+LOW_RISK_ACTIONS = frozenset({"general", "read_balance", "lookup_account"})
 
 
 @dataclass
@@ -67,32 +71,25 @@ class ConfidenceRouter:
         Returns:
             RoutingDecision with routing action and metadata
         """
-        # Optional: Implement routing logic
-        #
-        # 1. Check if action_type is in HIGH_RISK_ACTIONS
-        #    -> If yes: always escalate (action="escalate", priority="high",
-        #       requires_human=True, reason="High-risk action: {action_type}")
-        #
-        # 2. Check confidence thresholds:
-        #    - confidence >= 0.9:
-        #      action="auto_send", priority="low",
-        #      requires_human=False, reason="High confidence"
-        #
-        #    - 0.7 <= confidence < 0.9:
-        #      action="queue_review", priority="normal",
-        #      requires_human=True, reason="Medium confidence — needs review"
-        #
-        #    - confidence < 0.7:
-        #      action="escalate", priority="high",
-        #      requires_human=True, reason="Low confidence — escalating"
-
-        return RoutingDecision(
-            action="auto_send",
-            confidence=confidence,
-            reason="TODO: implement routing logic",
-            priority="low",
-            requires_human=False,
-        )  # TODO: Replace with implementation
+        if action_type in HIGH_RISK_ACTIONS:
+            return RoutingDecision("escalate", confidence,
+                                   f"High-risk action: {action_type}", "high", True)
+        if action_type not in LOW_RISK_ACTIONS:
+            return RoutingDecision("escalate", confidence,
+                                   "Action type needs human review", "high", True)
+        if contains_sensitive_data(response):
+            return RoutingDecision("escalate", confidence,
+                                   "Response contains sensitive data", "high", True)
+        if not isinstance(confidence, (int, float)) or not math.isfinite(confidence) or not 0 <= confidence <= 1:
+            return RoutingDecision("escalate", confidence,
+                                   "Invalid confidence score", "high", True)
+        if confidence >= self.HIGH_THRESHOLD:
+            return RoutingDecision("auto_send", confidence, "High confidence", "low", False)
+        if confidence >= self.MEDIUM_THRESHOLD:
+            return RoutingDecision("queue_review", confidence,
+                                   "Medium confidence — needs review", "normal", True)
+        return RoutingDecision("escalate", confidence,
+                               "Low confidence — escalating", "high", True)
 
 
 # ============================================================
