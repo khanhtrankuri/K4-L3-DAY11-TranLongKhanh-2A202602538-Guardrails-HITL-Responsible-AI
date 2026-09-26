@@ -45,6 +45,7 @@ class OpenAIRunner:
     client_kwargs: dict = field(default_factory=dict)
     input_hooks: list[Callable[[str], str | None]] = field(default_factory=list)
     output_hooks: list[Callable[[str], str]] = field(default_factory=list)
+    last_model_used: str | None = None
 
     def _client(self):
         from openai import OpenAI
@@ -62,14 +63,29 @@ class OpenAIRunner:
             return block_msg
 
         client = self._client()
-        completion = client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": agent.instruction},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=self.temperature,
-        )
+        messages = [
+            {"role": "system", "content": agent.instruction},
+            {"role": "user", "content": user_message},
+        ]
+        try:
+            completion = client.chat.completions.create(
+                model=self.model, messages=messages, temperature=self.temperature
+            )
+            self.last_model_used = self.model
+        except Exception as exc:
+            # OpenRouter may keep the rubric's model ID while having no endpoint
+            # for it. Retry only that 404 with the same model's free endpoint.
+            if not (
+                self.provider == "openrouter"
+                and self.model == "liquid/lfm-2.5-2.6b"
+                and getattr(exc, "status_code", None) == 404
+            ):
+                raise
+            fallback = f"{self.model}:free"
+            completion = client.chat.completions.create(
+                model=fallback, messages=messages, temperature=self.temperature
+            )
+            self.last_model_used = fallback
         text = (completion.choices[0].message.content or "").strip()
 
         for hook in self.output_hooks:
@@ -191,7 +207,7 @@ def create_blue_pair(
     output_hooks: list | None = None,
     temperature: float = 0.4,
 ) -> tuple[OpenAIAgent, OpenAIRunner]:
-    """Blue Team — always OpenRouter liquid/lfm-2.5-2.6b."""
+    """Blue Team — fixed OpenRouter model with student plugins."""
     return _make_pair(
         name=name,
         instruction=instruction,

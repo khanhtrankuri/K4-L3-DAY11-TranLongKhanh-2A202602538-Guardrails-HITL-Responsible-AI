@@ -117,18 +117,14 @@ async def main() -> None:
             pass_live.append((name, prompt))
         print()
 
-    from core.config import get_openai_api_key, get_openrouter_api_key, get_llm_provider
+    from core.config import get_openai_api_key, get_llm_provider
 
     provider = get_llm_provider()
-    key_ok = (
-        get_openrouter_api_key()
-        if provider == "openrouter"
-        else get_openai_api_key()
-    )
+    key_ok = os.environ.get("GOOGLE_API_KEY", "").strip() if provider == "gemini" else get_openai_api_key()
     if not key_ok:
         print(
             f"No API key for provider={provider} — stopped before live LLM calls.\n"
-            "Set OPENAI_API_KEY or OPENROUTER_API_KEY in .env then re-run:\n"
+            "Set OPENAI_API_KEY or GOOGLE_API_KEY in .env then re-run:\n"
             "  python scripts/demo_attack_guards.py"
         )
         print(f"Prompts that would reach the model: {len(pass_live)}")

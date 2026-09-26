@@ -1,5 +1,7 @@
 # Day 11 — Controlled Agent Security (2026)
 
+**Học viên:** Tran Long Khanh · **MSSV:** 2A202602538
+
 > 👤 **Hình thức:** bài tập **cá nhân** (1 người / 1 MSSV).  
 > 🎯 **Mục tiêu:** xây **Blue** (phòng thủ), rồi red-team **Red** + **Red Advance**.  
 > ✅ Làm theo **Checkpoint 1 → 5** trong [`CHECKPOINTS.md`](CHECKPOINTS.md) · nộp theo [`SUBMISSION.md`](SUBMISSION.md).
@@ -44,6 +46,8 @@
 | **Red** + **Red Advance** | Cùng provider: `gpt-4o-mini` **hoặc** `gemini-3.5-flash` (model mềm — điểm bắt buộc) |
 | Model khó (tuỳ chọn) | `gpt-5.6-luna` / `gemini-3.8-flash` — **không** phải tên agent |
 
+Khi OpenRouter trả 404 vì ID Blue trong rubric không có endpoint, runtime thử endpoint `liquid/lfm-2.5-2.6b:free` của cùng model. `outputs/results.json` ghi cả `blue_model_requested` và `blue_model_used` để việc chấm có thể kiểm tra đúng model thực tế.
+
 ---
 
 ## Bộ tài liệu trong repo (quy ước Khóa 4)
@@ -59,8 +63,7 @@
 
 Codelab lớp: xem `template-codelabs/codelab-day11-k4-l3a.md` (L3A) hoặc bản L3B tương ứng.
 
-**Repo nộp học viên:** `K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI`  
-Ví dụ: `K4-L3-DAY11-NguyenVanA-2A2026xxxxx-Guardrails-HITL-Responsible-AI`
+**Repo nộp:** `K4-L3-DAY11-TranLongKhanh-2A202602538-Guardrails-HITL-Responsible-AI`
 
 ---
 
@@ -130,7 +133,7 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-Điền `.env`: `OPENROUTER_API_KEY` + `RED_TEAM_PROVIDER=openai|gemini` (và key tương ứng).  
+Điền `.env`: `OPENROUTER_API_KEY` cho Blue; chọn `RED_TEAM_PROVIDER=openai|gemini` và key Red tương ứng.
 Rồi mở [`CHECKPOINTS.md`](CHECKPOINTS.md) và làm lần lượt Checkpoint 1 → 5.
 
 Nộp theo [`SUBMISSION.md`](SUBMISSION.md) · Quy định: [`RULES.md`](RULES.md).

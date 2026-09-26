@@ -5,7 +5,6 @@ Hai tầng model (không trộn):
 
   Blue Team (CP2–CP3, guardrails / pipeline / protected agent)
     → CỐ ĐỊNH OpenRouter ``liquid/lfm-2.5-2.6b``
-       https://openrouter.ai/liquid/lfm-2.5-2.6b
     → Cần ``OPENROUTER_API_KEY``
 
   Red Team (CP4)
@@ -34,11 +33,10 @@ PROVIDER_OPENAI = "openai"
 PROVIDER_GEMINI = "gemini"
 PROVIDER_OPENROUTER = "openrouter"
 
-# --- Blue Team (LOCKED) ---
+# --- Blue Team (rubric-locked) ---
 BLUE_PROVIDER = PROVIDER_OPENROUTER
 BLUE_MODEL = "liquid/lfm-2.5-2.6b"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_OPENROUTER_MODEL = BLUE_MODEL  # alias
 
 # --- Red Team ---
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
@@ -104,7 +102,6 @@ def get_blue_provider() -> str:
 
 
 def get_blue_model() -> str:
-    # Hard-locked; env cannot override for the graded Blue Team path.
     return BLUE_MODEL
 
 
@@ -113,13 +110,11 @@ def get_openrouter_api_key() -> str:
 
 
 def blue_client_kwargs() -> dict:
-    """OpenAI SDK kwargs pointing at OpenRouter (Blue Team only)."""
+    """OpenAI-compatible SDK credentials and endpoint for Blue Team."""
     return {
         "api_key": get_openrouter_api_key() or None,
-        "base_url": (
-            os.environ.get("OPENROUTER_BASE_URL", OPENROUTER_BASE_URL).strip()
-            or OPENROUTER_BASE_URL
-        ),
+        "base_url": os.environ.get("OPENROUTER_BASE_URL", OPENROUTER_BASE_URL).strip()
+        or OPENROUTER_BASE_URL,
     }
 
 
@@ -206,7 +201,7 @@ def uses_openai_sdk() -> bool:
 
 
 def openai_compatible_client_kwargs() -> dict:
-    """Default client kwargs = Red Team OpenAI (not Blue/OpenRouter)."""
+    """Default client kwargs = Red Team OpenAI."""
     return red_openai_client_kwargs()
 
 
@@ -237,9 +232,7 @@ def is_harder_model() -> bool:
 def setup_api_key():
     """Ensure keys for Blue (OpenRouter) + Red / Red Advance (OpenAI or Gemini)."""
     if not get_openrouter_api_key():
-        os.environ["OPENROUTER_API_KEY"] = input(
-            "Enter OpenRouter API Key (Blue): "
-        ).strip()
+        os.environ["OPENROUTER_API_KEY"] = input("Enter OpenRouter API Key (Blue): ").strip()
     print(f"Blue  — {blue_provider_label()}  [LOCKED]")
 
     red = get_red_provider()
